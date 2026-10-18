@@ -1,0 +1,7 @@
+{
+  "name": "portrait",
+  "private": true,
+  "dependencies": {
+    "readme-portrait": "0.1.0"
+  }
+}
