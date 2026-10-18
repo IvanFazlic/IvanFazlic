@@ -6,8 +6,8 @@
 # - draw:    the only job that runs third-party code (gh-space-shooter from PyPI, exact versions
 #            checked by hash in .github/space-shooter/requirements.txt). It has no token at all
 #            and draws the game from the saved calendar file.
-# - publish: write token; runs no third-party code. It treats the drawn GIF as untrusted data:
-#            checks it is a single GIF file, copies it into a fresh repo and pushes only that.
+# - publish: write token; runs no third-party code. It treats the drawn GIFs as untrusted data:
+#            checks each is a regular GIF file, copies them into a fresh repo and pushes only those.
 # All actions are GitHub's own and pinned to full commit SHAs.
 name: Space shooter
 
@@ -15,6 +15,11 @@ on:
   schedule:
     - cron: "23 4 * * *" # daily, 04:23 UTC
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish to the output branch (untick to only draw and keep the artifact)
+        type: boolean
+        default: true
 
 permissions: {}
 
@@ -55,7 +60,7 @@ jobs:
             | {
                 username: env.OWNER,
                 total_contributions: .totalContributions,
-                weeks: [.weeks[-52:][] | {days: [.contributionDays[] | {
+                weeks: [.weeks[] | {days: [.contributionDays[] | {
                   date,
                   count: .contributionCount,
                   level: ({"NONE": 0, "FIRST_QUARTILE": 1, "SECOND_QUARTILE": 2, "THIRD_QUARTILE": 3, "FOURTH_QUARTILE": 4}[.contributionLevel] // 0)
@@ -88,23 +93,26 @@ jobs:
         run: |
           python -m pip install --require-hashes --only-binary=:all: --no-input -r "$RUNNER_TEMP/game/requirements.txt"
 
-      - name: Draw the game with month labels (no token, saved calendar only)
+      - name: Draw the game on a GitHub-style graph (no token, saved calendar only)
         env:
           PYTHONIOENCODING: utf-8
         run: |
           cd "$RUNNER_TEMP/game"
-          python draw.py calendar.json space-shooter.gif
-          ls -l space-shooter.gif
+          python draw.py calendar.json space-shooter-dark.gif space-shooter-light.gif
+          ls -l space-shooter-*.gif
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: space-shooter
-          path: ${{ runner.temp }}/game/space-shooter.gif
+          path: |
+            ${{ runner.temp }}/game/space-shooter-dark.gif
+            ${{ runner.temp }}/game/space-shooter-light.gif
           if-no-files-found: error
           retention-days: 1
 
   publish:
     needs: draw
+    if: github.event_name != 'workflow_dispatch' || inputs.publish
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -118,21 +126,23 @@ jobs:
       - name: Push to the output branch
         env:
           GH_TOKEN: ${{ github.token }}
-          ART: ${{ runner.temp }}/artifact/space-shooter.gif
+          ART: ${{ runner.temp }}/artifact
         run: |
-          # The artifact came from the job that ran third-party code: trust only this one file,
-          # and never run git inside the folder it was unpacked into.
-          if [ -L "$ART" ] || [ ! -f "$ART" ]; then echo "::error::space-shooter.gif is missing or not a regular file"; exit 1; fi
-          case "$(head -c 6 "$ART")" in GIF87a|GIF89a) ;; *) echo "::error::artifact is not a GIF"; exit 1 ;; esac
-          if [ "$(stat -c %s "$ART")" -gt 26214400 ]; then echo "::error::GIF is larger than 25 MB"; exit 1; fi
-
+          # The artifact came from the job that ran third-party code: trust only these two files,
+          # and never run git inside the folder they were unpacked into.
           repo="$RUNNER_TEMP/publish"
           mkdir "$repo"
-          cp -- "$ART" "$repo/space-shooter.gif"
+          for name in space-shooter-dark.gif space-shooter-light.gif; do
+            f="$ART/$name"
+            if [ -L "$f" ] || [ ! -f "$f" ]; then echo "::error::$name is missing or not a regular file"; exit 1; fi
+            case "$(head -c 6 "$f")" in GIF87a|GIF89a) ;; *) echo "::error::$name is not a GIF"; exit 1 ;; esac
+            if [ "$(stat -c %s "$f")" -gt 26214400 ]; then echo "::error::$name is larger than 25 MB"; exit 1; fi
+            cp -- "$f" "$repo/$name"
+          done
           cd "$repo"
           export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
           git init -q -b output
-          git add space-shooter.gif
+          git add space-shooter-dark.gif space-shooter-light.gif
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit -q -m "Update space shooter"
           auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
