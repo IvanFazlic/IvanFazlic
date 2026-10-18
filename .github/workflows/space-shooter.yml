@@ -39,7 +39,7 @@ jobs:
           OWNER: ${{ github.repository_owner }}
         run: |
           mkdir -p "$RUNNER_TEMP/input"
-          cp .github/space-shooter/requirements.txt "$RUNNER_TEMP/input/"
+          cp .github/space-shooter/requirements.txt .github/space-shooter/draw.py "$RUNNER_TEMP/input/"
           gh api graphql -f login="$OWNER" -f query='
             query($login: String!) {
               user(login: $login) {
@@ -88,13 +88,12 @@ jobs:
         run: |
           python -m pip install --require-hashes --only-binary=:all: --no-input -r "$RUNNER_TEMP/game/requirements.txt"
 
-      - name: Draw the game (no token, saved calendar only)
+      - name: Draw the game with month labels (no token, saved calendar only)
         env:
-          OWNER: ${{ github.repository_owner }}
           PYTHONIOENCODING: utf-8
         run: |
           cd "$RUNNER_TEMP/game"
-          gh-space-shooter "$OWNER" --raw-input calendar.json --output space-shooter.gif --strategy random --fps 40
+          python draw.py calendar.json space-shooter.gif
           ls -l space-shooter.gif
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
