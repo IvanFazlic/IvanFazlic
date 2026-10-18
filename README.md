@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/IvanFazlic/IvanFazlic/output/space-shooter.gif" width="100%" alt="A spaceship shooting down my GitHub contribution graph, with month labels and the busiest months' contribution counts" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/IvanFazlic/IvanFazlic/output/space-shooter-dark.gif" />
+    <img src="https://raw.githubusercontent.com/IvanFazlic/IvanFazlic/output/space-shooter-light.gif" alt="A spaceship shooting down my GitHub contribution graph; the three busiest months show their contribution counts" />
+  </picture>
 </p>
 
 <h2 align="center">Hi, I'm Ivan</h2>
