@@ -85,7 +85,8 @@ jobs:
           python-version: "3.12"
 
       - name: Install gh-space-shooter (exact versions, hash-checked)
-        run: python -m pip install --require-hashes --only-binary=:all: --no-input -r "$RUNNER_TEMP/game/requirements.txt"
+        run: |
+          python -m pip install --require-hashes --only-binary=:all: --no-input -r "$RUNNER_TEMP/game/requirements.txt"
 
       - name: Draw the game (no token, saved calendar only)
         env:
